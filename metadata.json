@@ -1,0 +1,6 @@
+{
+  "name": "ALEAMOVES",
+  "description": "ALEAMOVES - A neon-themed workout dice engine by DaniMoves with goal selection, multi-equipment support, real exercise database, guided warm-up & cool-down, in-app exercise demos, saved workouts, bilingual IT/EN support, and audio timers.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

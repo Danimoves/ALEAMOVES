@@ -1,0 +1,20 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Outfit", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+/* Custom styles for neon glowing effects */
+.shadow-neon-blue {
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.4);
+}
+
+.shadow-neon-fuchsia {
+  box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+}
+
+.text-neon-glow {
+  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5), 0 0 20px rgba(255, 0, 255, 0.3);
+}
