@@ -66,6 +66,13 @@ import { TutorialModal } from './components/TutorialModal';
 import { SafetyModal } from './components/SafetyModal';
 import { DaniMovesFooter } from './components/DaniMovesFooter';
 import { STRETCHING_EXERCISES, getStretchingExercisesForWorkout } from './data/stretchingDatabase';
+import {
+  AnalyticsConsent,
+  getAnalyticsConsent,
+  initializeAnalytics,
+  setAnalyticsConsent,
+  trackEvent,
+} from './utils/analytics';
 
 export default function App() {
   const [view, setView] = useState<string>('setup'); // setup, rolling, workout-preview, timer, finish, library, profile
@@ -122,6 +129,8 @@ export default function App() {
 
   // Notifiche Toast
   const [toastMessage, setToastMessage] = useState<string>("");
+  const [analyticsConsent, setAnalyticsConsentState] = useState<AnalyticsConsent | null>(() => getAnalyticsConsent());
+  const [workoutRating, setWorkoutRating] = useState<number | null>(null);
 
   // Playlist Musicale
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string>(() => {
@@ -157,6 +166,21 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('aleamoves_lang', lang);
   }, [lang]);
+
+  useEffect(() => {
+    if (analyticsConsent !== 'granted') return;
+    initializeAnalytics();
+    if (sessionStorage.getItem('aleamoves_session_open_tracked') !== 'true') {
+      trackEvent('app_opened');
+      sessionStorage.setItem('aleamoves_session_open_tracked', 'true');
+    }
+  }, [analyticsConsent]);
+
+  const handleAnalyticsConsent = (consent: AnalyticsConsent) => {
+    setAnalyticsConsent(consent);
+    setAnalyticsConsentState(consent);
+    if (consent === 'granted') trackEvent('analytics_consent_granted');
+  };
 
   // Lista completa esercizi per la libreria (Fitness + Allungamento/Mobilità Olistica)
   const fullExerciseList = useMemo<ExerciseItem[]>(() => {
@@ -484,6 +508,7 @@ export default function App() {
 
   // Generazione del workout guidata dall'obiettivo e dai vincoli
   const generateWorkout = () => {
+    trackEvent('workout_generation_requested');
     let targetMuscles = activeMuscles;
     if (targetMuscles.length === 0) {
       targetMuscles = MUSCLE_GROUPS.map(m => m.id);
@@ -664,12 +689,15 @@ export default function App() {
         totalRounds,
         goal: selectedGoal
       });
+      trackEvent('workout_generated');
       setIsRolling(false);
       setView('workout-preview');
     }, rollDuration);
   };
 
   const startWorkout = () => {
+    trackEvent('workout_started');
+    setWorkoutRating(null);
     setView('timer');
     setTimeLeft(10);
     setTimerStatus('prepare');
@@ -735,6 +763,7 @@ export default function App() {
 
   // Timer & completamento
   const handleWorkoutComplete = () => {
+    trackEvent('workout_completed');
     const baseXP = totalTime * 5; 
     const intensityBonus = intensity * 15;
     const customCountBonus = exerciseCountMode === 'custom' ? 20 : 0;
@@ -972,6 +1001,7 @@ export default function App() {
       <TutorialModal
         isOpen={isTutorialOpen}
         onClose={() => setIsTutorialOpen(false)}
+        onComplete={() => trackEvent('tutorial_completed')}
         lang={lang}
       />
 
@@ -1776,6 +1806,34 @@ export default function App() {
           </div>
 
           <div className="w-full max-w-sm space-y-3">
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="mb-3 text-center text-xs font-black uppercase tracking-wider text-zinc-300">
+                {lang === 'it' ? 'Quanto ti è piaciuto questo allenamento?' : 'How did you like this workout?'}
+              </p>
+              <div className="flex items-center justify-center gap-2" aria-label={lang === 'it' ? 'Valuta l’allenamento' : 'Rate the workout'}>
+                {[1, 2, 3, 4, 5].map((rating) => (
+                  <button
+                    key={rating}
+                    type="button"
+                    onClick={() => {
+                      setWorkoutRating(rating);
+                      trackEvent('workout_rated', { rating });
+                    }}
+                    className={`h-10 w-10 rounded-full border text-sm font-black transition-all active:scale-90 ${workoutRating === rating ? 'border-fuchsia-400 bg-fuchsia-500 text-white' : 'border-white/15 bg-black/30 text-zinc-300 hover:border-fuchsia-500/60'}`}
+                    aria-label={`${rating} ${lang === 'it' ? 'su 5' : 'out of 5'}`}
+                    aria-pressed={workoutRating === rating}
+                  >
+                    {rating}
+                  </button>
+                ))}
+              </div>
+              {workoutRating && (
+                <p className="mt-2 text-center text-[10px] font-bold text-cyan-300">
+                  {lang === 'it' ? 'Grazie per il tuo feedback!' : 'Thanks for your feedback!'}
+                </p>
+              )}
+            </div>
+
             <button 
               onClick={handleSaveWorkout} 
               className="w-full p-4 rounded-2xl bg-zinc-900 border border-fuchsia-500/40 text-fuchsia-400 font-black text-sm uppercase italic flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer"
@@ -2254,8 +2312,35 @@ export default function App() {
           setIsTutorialOpen(false);
           localStorage.setItem('aleamoves_tutorial_seen', 'true');
         }}
+        onComplete={() => trackEvent('tutorial_completed')}
         lang={lang}
       />
+
+      {analyticsConsent === null && (
+        <div className="fixed bottom-20 left-3 right-3 z-[70] mx-auto max-w-md rounded-2xl border border-cyan-500/40 bg-black/95 p-4 text-white shadow-[0_0_30px_rgba(0,240,255,0.18)] backdrop-blur-xl">
+          <p className="text-xs font-bold leading-relaxed text-zinc-200">
+            {lang === 'it'
+              ? 'Ci aiuti a migliorare? Con il tuo consenso raccogliamo statistiche anonime sull’uso di ALEAMOVES. Non raccogliamo obiettivi fitness o dati personali.'
+              : 'Help us improve. With your consent, we collect anonymous ALEAMOVES usage statistics. We do not collect fitness goals or personal data.'}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              onClick={() => handleAnalyticsConsent('denied')}
+              className="flex-1 rounded-xl border border-white/15 px-3 py-2 text-xs font-black uppercase text-zinc-300"
+            >
+              {lang === 'it' ? 'No, grazie' : 'No, thanks'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAnalyticsConsent('granted')}
+              className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-fuchsia-500 px-3 py-2 text-xs font-black uppercase text-white"
+            >
+              {lang === 'it' ? 'Accetto' : 'Accept'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Modale Avviso di Sicurezza & Salute */}
       <SafetyModal

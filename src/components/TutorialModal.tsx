@@ -5,10 +5,11 @@ import { Language, TRANSLATIONS } from '../data/translations';
 interface TutorialModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onComplete?: () => void;
   lang: Language;
 }
 
-export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose, lang }) => {
+export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose, onComplete, lang }) => {
   const [step, setStep] = useState<number>(0);
   if (!isOpen) return null;
 
@@ -46,6 +47,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({ isOpen, onClose, l
       setStep(s => s + 1);
     } else {
       localStorage.setItem('aleamoves_tutorial_seen', 'true');
+      onComplete?.();
       onClose();
     }
   };
